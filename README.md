@@ -3,4 +3,4 @@
 
 ## To do
 - [ ] Literature review
-- [ ] Set up simulations
+- [ ] Set up simulations using the `here` package in R
