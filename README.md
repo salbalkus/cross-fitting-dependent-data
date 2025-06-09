@@ -1,6 +1,10 @@
 # Cross-Fitting on Dependent Data
 
-The goal of this project is to provide a guide to practitioners on how to perform cross-fitting when conducting causal inference in settings where units are correlated with each other (i.e. clustered, spatial, network, longitudinal data).
+The goal of this project is to provide a guide to practitioners on how to perform cross-fitting when conducting causal inference in settings where units are correlated with each other (i.e. clustered, spatial, network, longitudinal data). The final product will include:
+
+1. A literature review surveying how cross-fitting has been used in causal machine learning, and what its purpose is
+2. The main theorem showing that as-iid cross-fitting is still valid in the network setting
+3. Specializations of the main theorem to several practical data settings, with simulations demonstrating the results.
 
 ## To do
 - [ ] Set up recurring meeting room in the Smith Campus center on Tuesdays or Thursdays.
