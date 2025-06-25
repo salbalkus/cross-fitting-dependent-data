@@ -103,7 +103,7 @@ lrnr_xgb_reg <- Lrnr_xgboost$new(objective = "reg:squarederror",
 
 learners <- list(Y = lrnr_xgb_reg, A = lrnr_xgb_bin) 
 
-ATE_spec <- tmle_ATE(treatment_level = 1, control-level = 0)  
+ATE_spec <- tmle_ATE(treatment_level = 1, control_level = 0)  
 
 
 
