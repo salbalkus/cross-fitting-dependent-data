@@ -13,11 +13,11 @@ The goal of this project is to provide a guide to practitioners on how to perfor
 - [X] Implement nonlinear simulation and compute one-step and TMLE with a machine learning model like XGBoost or earth/MARS
 - [ ] Look at the dependent data papers from the literature and create simulation settings with similar dependency structures
   - [X] clusters
-  - [] time-series
-  - [] networks
+  - [ ] time-series
+  - [ ] networks
 - [ ] Implement different variations of cross-fitting strategies from the papers in the literature review and Lahiri (2003) "Resampling Methods for Dependent Data".
-      - [X] clusters
-      - [] time-series
-      - [] networks
+  - [X] clusters
+  - [ ] time-series
+  - [ ] networks
 - [ ] Run simulations that record the bias and variance of the estimator across different sample sizes using different sample splitting strategies.
 - [ ] Derive corollaries based on Theorem 1 for specific dependency structures. For example, a clustered data structure should admit a CLT with rate $\sqrt{n}$.
