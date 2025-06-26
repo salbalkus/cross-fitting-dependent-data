@@ -38,6 +38,10 @@ ATE_crossfit_xgb <- function(df, K = 5L, nrounds_g = 250, nrounds_Q = 250){
   
   n <- nrow(df)
   
+  g_hat <- rep(NA_real_, n)
+  Q0_hat <- rep(NA_real_, n)
+  Q1_hat <- rep(NA_real_, n)
+  
   folds <- make_folds(df, fold_fun =  folds_vfold, V = K) #### using origami
   
   for (fold in seq_len(K)){
@@ -46,7 +50,7 @@ ATE_crossfit_xgb <- function(df, K = 5L, nrounds_g = 250, nrounds_Q = 250){
     
     #####################################################propensity score estimation
     
-    dtrain_g <- xgb.Dmatrix(as.matrix(df[idx_tr, .(W1, W2)]), label = df$A[idx_tr])
+    dtrain_g <- xgb.DMatrix(as.matrix(df[idx_tr, .(W1, W2)]), label = df$A[idx_tr])
     
     mod_g <- xgb.train(params = list(objective = "binary:logistic", 
                                      eval_metric = "logloss", 
@@ -58,11 +62,11 @@ ATE_crossfit_xgb <- function(df, K = 5L, nrounds_g = 250, nrounds_Q = 250){
     
     g_hat[idx_te] <- predict(mod_g, newdata = as.matrix(df[idx_te, .(W1, W2)]))
     
-    g_hat[idx_te] <- clips01(g_hat[idx_te]) #################ensure positivity
+    g_hat[idx_te] <- clip01(g_hat[idx_te]) #################ensure positivity
     
     ##################################################outcome regression estimation
     
-    dtrain_Q <- xgb.Dmatrix(as.matrix(df[idx_tr, .(A, W1, W2)]), label = df$Y[idx_tr])
+    dtrain_Q <- xgb.DMatrix(as.matrix(df[idx_tr, .(A, W1, W2)]), label = df$Y[idx_tr])
     
     mod_Q <- xgb.train(params = list(objective = "reg:squarederror",
                                      eval_metric = "rmse",
@@ -77,8 +81,8 @@ ATE_crossfit_xgb <- function(df, K = 5L, nrounds_g = 250, nrounds_Q = 250){
     df_te1 <- copy(df[idx_te]); df_te1[, A:= 1]
     df_te0 <- copy(df[idx_te]); df_te0[, A:= 0]
     
-    Q1_hat[idx_te] <- predict(mod_Q, newdata = as.matrix(dt_te1[, .(A, W1, W2)]))
-    Q0_hat[idx_te] <- predict(mod_Q, newdata = as.matrix[dt_te0[, .(A, W1, W2)]])
+    Q1_hat[idx_te] <- predict(mod_Q, newdata = as.matrix(df_te1[, .(A, W1, W2)]))
+    Q0_hat[idx_te] <- predict(mod_Q, newdata = as.matrix(df_te0[, .(A, W1, W2)]))
     
   }  
   
@@ -96,7 +100,7 @@ lrnr_xgb_bin <- Lrnr_xgboost$new(objective = "binary:logistic",
                                  nrounds = 250, eta = 0.05, max_depth = 3)
 
 lrnr_xgb_reg <- Lrnr_xgboost$new(objective = "reg:squarederror", 
-                                 metric = "rmse",
+                                 eval_metric = "rmse",
                                  nrounds = 250, eta = 0.05, max_depth = 4)
 
 
@@ -125,9 +129,6 @@ tmle_fit <- tmle3(ATE_spec, sim, nodes, learners)
 print(tmle_fit$summary[, c("type", "psi_transformed", "se")])
 
 
-cat(sprintf("\nTrue ATE = %.2f | One-step = %.3f | TMLE = %.3f\n", ATE_true, res_os$ate, tmle_fit$summary$psi_transformed))
+cat(sprintf("\nTrue ATE = %.2f | One-step = %.3f | TMLE = %.3f\n", ATE_true, results_os$ate, tmle_fit$summary$psi_transformed))
 
 
-
-
-##not sure why but one-step is really bad here
