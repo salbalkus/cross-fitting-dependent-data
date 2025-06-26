@@ -10,8 +10,14 @@ The goal of this project is to provide a guide to practitioners on how to perfor
 - [X] Set up recurring meeting room in the Smith Campus center on Tuesdays or Thursdays.
 - [X] Literature review. Gather sources on cross-fitting and/or causal inference in dependent data (clustered, longitudinal, network, spatial, etc.), and add them to refs.bib on Overleaf with one sentence describing what they do and one sentence on why they're relevant to our project.
 - [X] Set up simulations using the `here` package in R. Generate data from $L$ - $A$ - $Y$, and use machine learning model to learn the ATE. Use "Causal Inference: What if?" as a reference, and put your code in the "scripts" folder.
-- [ ] Implement nonlinear simulation and compute one-step and TMLE with a machine learning model like XGBoost or earth/MARS
+- [X] Implement nonlinear simulation and compute one-step and TMLE with a machine learning model like XGBoost or earth/MARS
 - [ ] Look at the dependent data papers from the literature and create simulation settings with similar dependency structures
+        - [X] clusters
+        - [] time-series
+        - [] networks
 - [ ] Implement different variations of cross-fitting strategies from the papers in the literature review and Lahiri (2003) "Resampling Methods for Dependent Data".
+        - [X] clusters
+        - [] time-series
+        - [] networks
 - [ ] Run simulations that record the bias and variance of the estimator across different sample sizes using different sample splitting strategies.
 - [ ] Derive corollaries based on Theorem 1 for specific dependency structures. For example, a clustered data structure should admit a CLT with rate $\sqrt{n}$.
