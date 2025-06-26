@@ -12,9 +12,9 @@ The goal of this project is to provide a guide to practitioners on how to perfor
 - [X] Set up simulations using the `here` package in R. Generate data from $L$ - $A$ - $Y$, and use machine learning model to learn the ATE. Use "Causal Inference: What if?" as a reference, and put your code in the "scripts" folder.
 - [X] Implement nonlinear simulation and compute one-step and TMLE with a machine learning model like XGBoost or earth/MARS
 - [ ] Look at the dependent data papers from the literature and create simulation settings with similar dependency structures
-      - [X] clusters
-      - [] time-series
-      - [] networks
+  - [X] clusters
+  - [] time-series
+  - [] networks
 - [ ] Implement different variations of cross-fitting strategies from the papers in the literature review and Lahiri (2003) "Resampling Methods for Dependent Data".
       - [X] clusters
       - [] time-series
