@@ -19,8 +19,6 @@ dgp_ts <- function(T = 600,     #series length
                    beta_0 = rep(0.5, p),
                    seed = 258
 ){
-  set.seed(seed)
-  
   Sigma.p <- as.matrix(toeplitz(s_X^(0:(p - 1))))
   stopifnot(length(rep(0, p)) == ncol(Sigma.p))   # mean length vs Σ
   stopifnot(all(dim(Sigma.p) == c(p, p)))
@@ -45,10 +43,7 @@ dgp_ts <- function(T = 600,     #series length
   list(Y = Y, D = D, Z = Z, X = X, idx = idx, theta = theta0, m = m)
 }
 
-
-
 ######################################################chernozhukov cross-fitting
-
 
 crossfit_iid_ts <- function(df, K = 2){
   n <- nrow(df$X)
@@ -82,7 +77,6 @@ crossfit_iid_ts <- function(df, K = 2){
   
   c(theta = theta_hat, se = se)
 }
-
 
 ############################################## neighbours left out cross-fitting
 
