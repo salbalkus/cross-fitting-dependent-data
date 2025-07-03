@@ -123,7 +123,7 @@ crossfit_nlo_ts <- function(df, K = 5){
   psi_all <- do.call(rbind, psi_list)
   
   J0 <- mean(psi_all$u * psi_all$v)
-  theta_hat <- mean(psi_all$ps) / J0
+  theta_hat <- mean(psi_all$psi) / J0
   
   fold_means <- sapply(psi_list, function(df) mean(df$psi - theta_hat * df$u * df$v))
   
