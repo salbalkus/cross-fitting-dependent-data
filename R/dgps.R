@@ -7,6 +7,7 @@ library(tmle3)
 library(origami) #for cross-validation/fitting 
 library(xgboost)
 library(ggplot2) 
+library(igraph)
 
 
 ################################# linear, iid
@@ -129,4 +130,22 @@ dgp_ts <- function(T = 600,     #series length
   
   list(Y = Y, D = D, Z = Z, X = X, idx = idx, theta = theta0, m = m)
 }
+
+################################# network setting
+
+dgp_network <- function(n, scale=5) {
+  # Confounders
+  W1 <- rbeta(n, 2, 2)
+  W2 <- rpois(n, 10)
+  W3 <- rbinom(n, 1, 0.3)
+  mu <- 5*(W1 > 0.4) - 2*(W1 > 0.6) + 3*(W1 > 0.7) + (2*W3 - 1)*W2 + 20
+  p_treat  <- plogis(mu/20 - 1)
+  A  <- rbinom(n, 1, p_treat)
+  mu_treat <- (2*A + 1) * mu 
+  G <- as_adjacency_matrix(sample_gnp(n, 10 / n))
+  cor_err <- (G %*% (scale * rbeta(n, 6, 6)))[,1]
+  Y  <- mu_treat + cor_err
+  list(W1 = W1, W2 = W2, W3 = W3, A = A, Y = Y, p_treat = p_treat, mu_treat = mu_treat, G = G)
+}
+
 
