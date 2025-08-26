@@ -117,7 +117,8 @@ truth = mean(2*data_for_truth$mu) # When A = 1, mu_treat = 3*mu; when A = 0, mu_
 ### SIMULATION FUNCTIONS
 
 # Run a single simulation
-single_simulation <- function(truth, g_params, Q_params, n = 1000, K = 5){
+single_simulation <- function(truth, g_params, Q_params, i, n = 1000, K = 5){
+  print(paste("Running simulation", i))
   data <- dgp_network(n)
   t1 <- system.time(est_iid <- crossfit_iid_net(data, g_params, Q_params, K = K))["elapsed"]
   t2 <- system.time(est_emm <- crossfit_emm_net(data, g_params, Q_params, K = K))["elapsed"]
@@ -141,7 +142,7 @@ getfilename <- function(init = "sim_net"){
 # Run a series of simulations and save to a file
 perf_network <- function(truth, g_params, Q_params, n, reps = 1, K = 5, seed = 42){
   set.seed(seed + n)
-  dfs = replicate(reps, single_simulation(truth, g_params, Q_params, n = n, K = K), simplify = FALSE)
+  dfs = lapply(1:reps, \(i) single_simulation(truth, g_params, Q_params, i, n = n, K = K))
   df = do.call(rbind, dfs)
   write.csv(df, getfilename(init = paste0("sim_net", n)), row.names = FALSE)
 }
