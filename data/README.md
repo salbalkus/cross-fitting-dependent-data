@@ -1,0 +1,1 @@
+For storing simulation results and other raw data files.
