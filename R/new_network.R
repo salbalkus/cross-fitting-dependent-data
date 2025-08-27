@@ -1,6 +1,5 @@
 library(igraph)
 library(xgboost)
-library(data.table)
 library(here)
 
 ### Data Generating Process
