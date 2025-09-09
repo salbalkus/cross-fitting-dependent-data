@@ -160,12 +160,12 @@ sim <- function(N_vec, M_vec, R, K_iid, K_2w, seed = 258){
     res <- as.data.table(t(res))
     out[[i]] <- data.table(
       N = N, M = M,
-      bias_iid = mean(res$theta_iid/res$truth),
+      bias_iid = mean((res$theta_iid - res$truth) / res$truth),
       var_iid = var(res$theta_iid),
       mse_iid = mean((res$theta_iid - res$truth)^2),
       mean_t_iid = mean(res$time_iid),
       
-      bias_2w = mean(res$theta_2w/res$truth),
+      bias_2w = mean((res$theta_2w - res$truth) / res$truth),
       var_2w = var(res$theta_2w),
       mse_2w = mean((res$theta_2w - res$truth)^2),
       mean_t_2w = mean(res$time_2w)
