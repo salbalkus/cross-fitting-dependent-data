@@ -1,4 +1,3 @@
-```{r}
 library(glmnet)
 library(data.table)
 library(ggplot2)
@@ -7,8 +6,9 @@ library(gridExtra)
 
 ########################################################################### DGP
 
-dgp_vdl <- function(T = 600, m = 2, seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
+expit <- function(x) 1/(1+exp(-x))
+
+dgp_vdl <- function(T = 600, m = 2) {
   
   # storage
   A  <- Y <- integer(T)
@@ -20,10 +20,7 @@ dgp_vdl <- function(T = 600, m = 2, seed = NULL) {
   Y[1:init]  <- rbinom(init, 1, 0.5)
   W1[1:init] <- rbinom(init, 1, 0.5)
   W2[1:init] <- sample(1:3, init, TRUE)
-  W3[1:init] <- rbinom(init, 1, 0.5)
-  
-  expit <- function(x) 1/(1+exp(-x))
-  
+  W3[1:init] <- rbinom(init, 1, 0.5)  
   # coefficients (Simulation 1a, vdL 2021)
   coef_A <- list(W1 =  0.25, W2 = -0.20, Y = 0.30,  A = -0.20, W3_2 = 0.20)
   coef_Y <- list(W1 = -0.80, W2 =  0.10, W3 = 0.20, A =  1.00,
@@ -72,8 +69,6 @@ ate_score <- function(Y, A, g, Q0, Q1, tau){
   (A - g)/(g*(1-g)) * (Y - ifelse(A == 1, Q1, Q0) + Q1 - Q0 - tau)
 }
 
-
-
 crossfit_iid_ts <- function(data, K = 2, seed = 258){
   set.seed(seed)
   n <- nrow(data$X)
@@ -92,8 +87,6 @@ crossfit_iid_ts <- function(data, K = 2, seed = 258){
   psi <- ate_score(data$Y, data$A, g_hat, Q0_hat, Q1_hat, 0)
   c(theta = mean(psi), se = sd(psi)/sqrt(n))
 }
-
-
 
 ############################################################# Semenova Crossfit
 make_nlo_folds <- function(T, K, gap) {
@@ -125,7 +118,7 @@ crossfit_nlo_ts <- function(data, K = 5, seed = 258) {
     
     fit_g <- cv.glmnet(data$X[tr,, drop = FALSE], data$A[tr], family = "binomial")
     fit_Q <- cv.glmnet(cbind(A = data$A[tr], data$X[tr,, drop = FALSE]),
-                       data$Y[tr], family = "gaussian")
+                       data$Y[tr], family = "binomial")
     
     g_te  <- drop(predict(fit_g, data$X[te,, drop = FALSE],
                           type = "response", s = "lambda.min"))
@@ -145,17 +138,20 @@ crossfit_nlo_ts <- function(data, K = 5, seed = 258) {
 
 #################################################################### simulation!
 
-perf_ts <- function(T_vec = c(400, 900, 1600, 2500), m = 2, reps = 200, K_iid = 2,
+perf_ts <- function(T_vec = c(400, 900, 1600, 2500), m = 2, reps = 200, K_iid = 5,
                     K_nlo = 5, seed = 42, true_tau = 0){
   set.seed(seed)
   res <- list(); idx <- 1
   for (T in T_vec){
-    theta_iid <- theta_nlo <- time_iid <- time_nlo <- numeric(reps)
+    print(paste("Running T =", T))
+    theta_iid <- theta_nlo <- time_iid <- time_nlo <- se_iid <- se_nlo <- numeric(reps)
     for (r in seq_len(reps)){
       data <- dgp_vdl(T, m)
+      print(paste0("IID Replicate ", r))
       t1 <- system.time(est_iid <- crossfit_iid_ts(data, K_iid, seed+T+r))["elapsed"]
+      print(paste0("NLO Replicate ", r))
       t2 <- system.time(est_nlo <- crossfit_nlo_ts(data, K_nlo, seed+T+r))["elapsed"]
-      theta_iid[r] <- est_iid["theta"]; time_iid[r] <- t1
+      theta_iid[r] <- est_iid["theta"]; time_iid[r] <- t1; sd_iid
       theta_nlo[r] <- est_nlo["theta"]; time_nlo[r] <- t2
     }
     res[[idx]] <- data.table(method = "iid", T = T,
@@ -176,14 +172,11 @@ perf_ts <- function(T_vec = c(400, 900, 1600, 2500), m = 2, reps = 200, K_iid = 
 
 ########################################################################### test
 
-if (interactive()) {
-  set.seed(2025)
-  out <- perf_ts(T_vec = 400, reps = 50, m = 20)
-  print(out)
-}
-
+set.seed(2025)
+out <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 3, m = 20)
 
 res_dt <- out
+write.csv(res_dt, here("data", "results_ts.csv"), row.names = FALSE)
 library(patchwork)
 
 p_bias <- ggplot(res_dt, aes(T, bias, color = method)) +
@@ -206,10 +199,7 @@ p_time <- ggplot(res_dt, aes(T, mean_time, color = method)) +
   labs(title = "Mean Time", x = "T", y = "Seconds") +
   theme_minimal()
 
-(p_bias | p_var) / (p_mse | p_time) + plot_layout(guides = "collect") &
+p_final <- (p_bias | p_var) / (p_mse | p_time) + plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
 
-
-
-
-```
+ggsave(here("figures", "plots_ts.png"), p_final, width = 8, height = 6)

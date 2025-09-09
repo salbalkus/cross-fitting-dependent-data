@@ -3,6 +3,7 @@ library(data.table)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(here)
 
 dgp_two_way <- function(N, M, sigma_Y, seed = NULL){
   if(!is.null(seed)) set.seed(seed)
@@ -127,9 +128,9 @@ twoWay_cf <- function(dt, K = 2){
   dr <- A*(Y-Q1)/g - (1-A)*(Y-Q0)/(1-g) + (Q1 - Q0)
   theta <- mean(dr); psi <- dr - theta
   
-  
-  row_sum <- dt[,.(s = sum(psi)), by = i]$s ; col_sum <- dt[,.(s = sum(psi)), by = j]$s
-  var_hat <- (sum(row_sum^2) + sum(col_sum^2) - sum(psi^2))/ (N*M)^2
+  #row_sum <- dt[,.(s = sum(psi)), by = i]$s ; col_sum <- dt[,.(s = sum(psi)), by = j]$s
+  #var_hat <- (sum(row_sum^2) + sum(col_sum^2) - sum(psi^2))/ (N*M)^2
+  var_hat <- mean(psi^2)
   list(theta = theta, se = sqrt(var_hat), psi  = psi)
 }
 
@@ -139,11 +140,14 @@ sim <- function(N_vec, M_vec, R, K_iid, K_2w, seed = 258){
   
   out <- list(); i <- 1
   for (N in N_vec) for (M in M_vec) if (N == M){
+    print(paste0("Running ", N, " x ", M))
     res <- replicate(R, {
       dt <- dgp_two_way(N,M, 1)
       truth <- attr(dt, "ATE_true")
       
+      print(paste0("Simulating IID..."))
       t1 <- system.time(est_iid <- iid_cf(copy(dt), K_iid))[3]
+      print(paste0("Simulating Cluster..."))
       t2 <- system.time(est_2w <- twoWay_cf(copy(dt), K_iid))[3]
       
       c(theta_iid = est_iid$theta,
@@ -156,7 +160,6 @@ sim <- function(N_vec, M_vec, R, K_iid, K_2w, seed = 258){
     res <- as.data.table(t(res))
     out[[i]] <- data.table(
       N = N, M = M,
-      
       bias_iid = mean(res$theta_iid/res$truth),
       var_iid = var(res$theta_iid),
       mse_iid = mean((res$theta_iid - res$truth)^2),
@@ -172,12 +175,12 @@ sim <- function(N_vec, M_vec, R, K_iid, K_2w, seed = 258){
   rbindlist(out)
 }
 
-
-
 ############################################## please work
 set.seed(258)
-tab <- sim(N_vec = c(20,40,60,80), M_vec = c(20, 40, 60, 80), R = 30, K_iid = 5, K_2w = 2)
-print(tab)
+
+tab <- sim(N_vec = c(20,40,60,80), M_vec = c(20, 40, 60, 80), R = 3, K_iid = 5, K_2w = 5)
+
+write.csv(tab, here("data", "results_cluster.csv"), row.names = FALSE)
 
 nm_levels <- tab %>% arrange(N, M) %>% 
   transmute(NM = paste0(N, "×", M)) %>% distinct() %>% pull()
@@ -200,6 +203,8 @@ plot_df <- tab %>%
                             iid  = "IID DML",
                             tw   = "2‑Way DML"))
 
+write.csv(plot_df, here("data", "plotdf_cluster.csv"), row.names = FALSE)
+
 ggplot(plot_df,
        aes(x = NM, y = value,
            colour = estimator, group = estimator)) +
@@ -215,3 +220,4 @@ ggplot(plot_df,
         plot.title  = element_text(size = 14, face = "bold", hjust = .5),
         axis.text.x = element_text(angle = 45, hjust = 1))
 
+ggsave(here("figures", "fig_cluster.png"), width = 8, height = 6)
