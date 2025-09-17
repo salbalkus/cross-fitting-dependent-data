@@ -73,7 +73,7 @@ dgp_vdl <- function(T = 600, m = 6) {
 
 ########################################################## Chernozhukov Crossfit
 ate_score <- function(Y, A, g, Q0, Q1, tau){
-  g <- pmin(pmax(g, 1e-6), 1 - 1e-6)
+  g <- pmin(pmax(g, 1e-3), 1 - 1e-3)
   (A - g)/(g*(1-g)) * (Y - ifelse(A == 1, Q1, Q0) + Q1 - Q0 - tau) + (Q1 - Q0 - tau)
 }
 
@@ -179,7 +179,7 @@ perf_ts <- function(T_vec = c(400, 900, 1600, 2500), m = 2, reps = 200, K_iid = 
 set.seed(2025)
 
 
-res_dt <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 5, m = 10, K_iid = 5, K_nlo = 5, true_tau = 1)
+res_dt <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 500, m = 10, K_iid = 5, K_nlo = 5, true_tau = 1)
 write.csv(res_dt, here("data", "results_ts_hard.csv"), row.names = FALSE)
 
 p_bias <- ggplot(res_dt, aes(T, bias, color = method)) +
