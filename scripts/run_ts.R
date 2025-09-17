@@ -3,4 +3,4 @@ renv::load(here::here())
 
 library(here)
 print("Running time series simulation")
-source(here("R", "new_ts.R"))
+source(here("R", "hard_ts.R"))
