@@ -3,4 +3,4 @@ renv::load(here::here())
 
 library(here)
 print("Running cluster simulation")
-source(here("R", "new_cluster.R"))
+source(here("R", "hard_cluster.R"))
