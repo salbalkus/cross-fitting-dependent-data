@@ -133,12 +133,17 @@ twoWay_cf <- function(dt, K = 2){
 
 sim <- function(N_vec, M_vec, R, K_iid, K_2w){
   
+  # Generate the large-sample truth
+  dt_truth = dgp_two_way(N = 10000, M = 10000, sigma_Y = 0.5)
+  truth = attr(dt_truth, "ATE_true")
+  remove(dt_truth)
+
   out <- list(); i <- 1
   for (N in N_vec) for (M in M_vec) if (N == M){
     print(paste0("Running ", N, " x ", M))
     res <- replicate(R, {
       dt <- dgp_two_way(N,M, 0.5)
-      truth <- attr(dt, "ATE_true")
+      #truth <- attr(dt, "ATE_true") #within-sample truth
       
       print(paste0("Simulating IID..."))
       t1 <- system.time(est_iid <- iid_cf(copy(dt), K_iid))[3]
@@ -173,7 +178,7 @@ sim <- function(N_vec, M_vec, R, K_iid, K_2w){
 ### Run Simulation ###
 set.seed(1)
 
-tab <- sim(N_vec = c(30,40,50,60), M_vec = c(30,40,50,60), R = 500, K_iid = 2, K_2w = 2)
+tab <- sim(N_vec = c(30,40,50,60), M_vec = c(30,40,50,60), R = 10, K_iid = 2, K_2w = 2)
 
 write.csv(tab, here("data", "results_cluster_hard.csv"), row.names = FALSE)
 
