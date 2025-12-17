@@ -17,9 +17,13 @@ df_cluster_long <- df_cluster %>%
         names_to = c(".value", "type"),
         names_pattern = "(.*)_(iid|2w)$"
     ) %>%
-    mutate(N_M = paste0(N, " x ", M)) %>%
-    select(-N, -M)
+    mutate(N_M = paste0(N, " x ", M))
 df_cluster_long$type = factor(df_cluster_long$type, levels = c("iid", "2w"), labels = c("As-independent", "Two-way"))
+df_cluster_long$scaled_mse = df_cluster_long$mse * (df_cluster_long$N * df_cluster_long$M)
+df_cluster_long$scaled_var = df_cluster_long$var * (df_cluster_long$N * df_cluster_long$M)
+df_cluster_long$scaled_bias = df_cluster_long$bias * sqrt(df_cluster_long$N * df_cluster_long$M)
+df_cluster_long$bias = df_cluster_long$bias * 100  # convert to percentage
+
 # Create table
 df_cluster_tbl = df_cluster %>% 
     mutate(N_M = paste0(N, " x ", M)) %>% select(-N, -M) %>%
@@ -40,35 +44,46 @@ p_bias <- ggplot(df_cluster_long, aes(x = N_M, y = bias, color = type, group = t
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
-p_var <- ggplot(df_cluster_long, aes(x = N_M, y = var, color = type, group = type)) +
+p_scaled_bias <- ggplot(df_cluster_long, aes(x = N_M, y = scaled_bias, color = type, group = type)) +
     geom_line() +
     geom_point() +
+    geom_hline(aes(yintercept = 0)) +
     scale_color_manual(values = val_colors) +
-    labs(y = "Variance", x = "Sample Size") +
+    labs(y = "Scaled Bias", x = "Sample Size") +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
-p_mse <- ggplot(df_cluster_long, aes(x = N_M, y = mse * c(900, 1600, 2500, 3600), color = type, group = type)) +
+p_var <- ggplot(df_cluster_long, aes(x = N_M, y = scaled_var / 10^4, color = type, group = type)) +
     geom_line() +
     geom_point() +
     scale_color_manual(values = val_colors) +
-    labs(y = "Scaled MSE", x = "Sample Size") +
+    labs(y = "Scaled Variance (10^4)", x = "Sample Size") +
+    theme_minimal() +
+    theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
+
+p_mse <- ggplot(df_cluster_long, aes(x = N_M, y = scaled_mse / 10^4, color = type, group = type)) +
+    geom_line() +
+    geom_point() +
+    scale_color_manual(values = val_colors) +
+    labs(y = "Scaled MSE (10^4)", x = "Sample Size") +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
 # Arrange plots in a grid with shared legend
-plot_grid <- (p_bias + p_var + p_mse) +
+plot_grid <- (p_scaled_bias / p_var) +
     plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
 
-ggsave(here("figures", "cluster.png"), plot = plot_grid, width = 9, height = 3)
+ggsave(here("figures", "scaled_cluster.png"), plot = plot_grid, width = 4, height = 4, dpi=300)
 
 # Time series results
 df_ts <- read.csv(here::here("data", "results_ts_hard.csv"))
-df_ts$method = factor(df_ts$method, levels = c("nlo", "iid"), labels = c("Neighbors left out", "As-independent"))
-
+df_ts$method = factor(df_ts$method, levels = c("iid", "nlo"), labels = c("As-independent", "Neighbors left out"))
+df_ts$scaled_variance = df_ts$variance * df_ts$T
+df_ts$scaled_bias = df_ts$bias * df_ts$T
+df_ts$bias = df_ts$bias * 100  # convert to percentage
 # Create table
-df_ts_tbl = df_ts %>% pivot_wider(names_from = method, values_from = c(bias, variance, mse, mean_time))
+df_ts_tbl = df_ts %>% select(-scaled_variance) %>% pivot_wider(names_from = method, values_from = c(bias, variance, mse, mean_time))
 
 kable(df_ts_tbl, format = "latex", col.names = c("Clusters", "IID", "NLO", "IID", "NLO", "IID", "NLO", "IID", "NLO"), booktabs = TRUE, digits = 3) %>% 
     add_header_above(c(" " = 1, "Bias (%)" = 2, "Variance" = 2, "MSE" = 2, "Mean Time (s)" = 2)) %>%
@@ -88,12 +103,22 @@ p_bias <- ggplot(df_ts, aes(x = T, y = bias, color = method, group = method)) +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
-p_var <- ggplot(df_ts, aes(x = T, y = variance, color = method, group = method)) +
+p_scaled_bias <- ggplot(df_ts, aes(x = T, y = scaled_bias, color = method, group = method)) +
+    geom_line() +
+    geom_point() +
+    geom_hline(aes(yintercept = 0)) +
+    scale_x_continuous(breaks = c(400, 900, 1600, 2500)) +
+    scale_color_manual(values = val_colors) +
+    labs(y = "Scaled Bias", x = "Sample Size") +
+    theme_minimal() +
+    theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
+
+p_var <- ggplot(df_ts, aes(x = T, y = scaled_variance, color = method, group = method)) +
     geom_line() +
     geom_point() +
     scale_x_continuous(breaks = c(400, 900, 1600, 2500)) +
     scale_color_manual(values = val_colors) +
-    labs(y = "Variance", x = "Sample Size") +
+    labs(y = "Scaled Variance", x = "Sample Size") +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
@@ -107,12 +132,11 @@ p_mse <- ggplot(df_ts, aes(x = T, y = mse * T, color = method, group = method)) 
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
 # Arrange plots in a grid with shared legend
-plot_grid <- (p_bias + p_var + p_mse) +
+plot_grid <- (p_scaled_bias / p_var) +
     plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
 
-ggsave(here("figures", "time_series.png"), plot = plot_grid, width = 9, height = 3)
-
+ggsave(here("figures", "scaled_time_series.png"), plot = plot_grid, width = 4, height = 4, dpi=300)
 
 
 ##### Network data #####
@@ -120,10 +144,12 @@ ggsave(here("figures", "time_series.png"), plot = plot_grid, width = 9, height =
 df_net_full = lapply(c(400, 900, 1600, 2500), function(n){read.csv(str_glue(here::here("data", "sim_net{n}_1.csv")))}) %>% bind_rows()
 
 df_net = df_net_full %>% group_by(n, method) %>% 
-    summarize(bias = mean(theta) - mean(truth), variance = var(theta), mse = mean((theta - truth)^2), mean_time = mean(time)) %>%
-    mutate(method = factor(method, levels = c("emm", "iid"), labels = c("Emmenegger et al.", "As-independent")))
+    summarize(bias = 100 * (mean(theta) - mean(truth)) / mean(truth), variance = var(theta), mse = mean((theta - truth)^2), mean_time = mean(time)) %>%
+    mutate(method = factor(method, levels = c("iid", "emm"), labels = c("As-independent", "Emmenegger et al."))) %>%
+    mutate(scaled_variance = variance * n / log(n)) %>% 
+    mutate(scaled_bias = bias * sqrt(n / log(n)))
 
-df_net_tbl =  df_net %>%
+df_net_tbl =  df_net %>% select(-scaled_variance, -scaled_bias) %>%
     pivot_wider(names_from = method, values_from = c(bias, variance, mse, mean_time))
 
 kable(df_net_tbl, format = "latex", col.names = c("Clusters", "IID", "Net", "IID", "Net", "IID", "Net", "IID", "Net"), booktabs = TRUE, digits = 3) %>% 
@@ -143,12 +169,22 @@ p_bias <- ggplot(df_net, aes(x = n, y = bias, color = method, group = method)) +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
-p_var <- ggplot(df_net, aes(x = n, y = variance, color = method, group = method)) +
+p_scaled_bias <- ggplot(df_net, aes(x = n, y = scaled_bias, color = method, group = method)) +
+    geom_line() +
+    geom_point() +
+    geom_hline(aes(yintercept = 0)) +
+    scale_x_continuous(breaks = c(400, 900, 1600, 2500)) +
+    scale_color_manual(values = val_colors) +
+    labs(y = "Scaled Bias", x = "Sample Size") +
+    theme_minimal() +
+    theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
+
+p_var <- ggplot(df_net, aes(x = n, y = scaled_variance, color = method, group = method)) +
     geom_line() +
     geom_point() +
     scale_x_continuous(breaks = c(400, 900, 1600, 2500)) +
     scale_color_manual(values = val_colors) +
-    labs(y = "Variance", x = "Sample Size") +
+    labs(y = "Scaled Variance", x = "Sample Size") +
     theme_minimal() +
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
@@ -171,8 +207,8 @@ p_mean_t <- ggplot(df_net, aes(x = n, y = mean_time, color = method, group = met
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
 # Arrange plots in a grid with shared legend
-plot_grid <- (p_bias + p_var + p_mse) +
+plot_grid <- (p_scaled_bias / p_var) +
     plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
 
-ggsave(here("figures", "network.png"), plot = plot_grid, width = 9, height = 3)
+ggsave(here("figures", "scaled_network.png"), plot = plot_grid, width = 4, height = 4, dpi=300)

@@ -3,6 +3,7 @@ library(data.table)
 library(ggplot2)
 library(gridExtra)
 library(here)
+library(patchwork)
 
 
 ########################################################################### DGP
@@ -181,8 +182,6 @@ set.seed(2025)
 
 res_dt <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 500, m = 2, K_iid = 5, K_nlo = 5, true_tau = 1)
 write.csv(res_dt, here("data", "results_ts.csv"), row.names = FALSE)
-
-library(patchwork)
 
 p_bias <- ggplot(res_dt, aes(T, bias, color = method)) +
   geom_line() + geom_point() +
