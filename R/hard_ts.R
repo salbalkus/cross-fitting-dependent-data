@@ -11,7 +11,15 @@ library(nnet)
 
 # Utility functions to generate A and Y
 expit <- function(x) 1/(1+exp(-x))
-yerr <- function(n){20*(rbeta(n,2,2) - 0.5)}
+
+# Just a note for anyone trying to replicate simulation results, including future me: 
+# there's a tradeoff here between the performance of "no cross-fitting" and the level of noise in Y. 
+# Increasing from 10 to 20, for example, makes the "no cross-fitting" approach visibily worse,
+# but it also makes the variance at 400 samples so large compared to the others that the graph is hard to read. 
+# At only 10, the difference is not as apparent at the sample sizes we use, but since we're not showing "no cross-fitting" in the paper, 
+# because its non-Donsker-ness violates the assumptions need for consistency, we keep this noise level at 10 for readability of the graph.
+
+yerr <- function(n){10*(rbeta(n,2,2) - 0.5)}
 maxit <- 200
 
 #lgrid <- c(0.001, 0.01, 0.1, 1)
