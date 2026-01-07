@@ -43,16 +43,15 @@ dgp_vdl <- function(T = 400, m = 10, d = 10){
   W2[1:init] <- sample(1:3, init, TRUE)
   W3[1:init] <- rbinom(init, 1, 0.5) 
 
-  coef_W1 = (1 / (1:m))
-  coef_W2 = 0.5*(1 / (1:m))
-  coef_W3 = -0.3*(1 / (1:m))
-
+  coef_W1 = 0.5*(1 / (1:m))
+  coef_W2 = 0.25*(1 / (1:m))
+  coef_W3 = -0.25*(1 / (1:m))
 
   for (t in (init + 1):(T+init)) {
     # treatment
     lpA[t] <- 0
     lpA[t] <- lpA[t] + sum(W1[(t-m):(t-1)] * coef_W1) + sum(W2[(t-m):(t-1)] * coef_W2) +
-        coef_A$Y*sum(Y[(t-m):(t-1)])  + coef_A$A*sum(A[(t-m):(t-1)]) + sum(W3[(t-m):(t-1)] * coef_W3) - 2
+        coef_A$Y*sum(Y[(t-m):(t-1)])  + coef_A$A*sum(A[(t-m):(t-1)]) + sum(W3[(t-m):(t-1)] * coef_W3) - 0.5
     A[t] <- rbinom(1, 1, expit(lpA[t] / (m)))
     
     # outcomes
