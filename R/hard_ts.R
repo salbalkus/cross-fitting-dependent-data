@@ -4,14 +4,18 @@ library(ggplot2)
 library(gridExtra)
 library(here)
 library(patchwork)
+library(nnet)
 
 
 ########################################################################### DGP
 
 # Utility functions to generate A and Y
 expit <- function(x) 1/(1+exp(-x))
-yerr <- function(n){4*(rbeta(n,2,2) - 0.5)}
-lgrid <- c(0.001, 0.01, 0.1, 1)
+yerr <- function(n){20*(rbeta(n,2,2) - 0.5)}
+maxit <- 200
+
+#lgrid <- c(0.001, 0.01, 0.1, 1)
+#nlambda <- 20
 
 dgp_vdl <- function(T = 400, m = 10, d = 10){  
 
@@ -38,17 +42,22 @@ dgp_vdl <- function(T = 400, m = 10, d = 10){
   W1[1:init] <- rbinom(init, 1, 0.5)
   W2[1:init] <- sample(1:3, init, TRUE)
   W3[1:init] <- rbinom(init, 1, 0.5) 
-  
-  for (t in (init + 1):T) {
+
+  coef_W1 = (1 / (1:m))
+  coef_W2 = 0.5*(1 / (1:m))
+  coef_W3 = -0.3*(1 / (1:m))
+
+
+  for (t in (init + 1):(T+init)) {
     # treatment
     lpA[t] <- 0
-    lpA[t] <- lpA[t] + coef_A$W1*sum(W1[(t-m):(t-1)]) + coef_A$W2*sum(W2[(t-m):(t-1)]) +
-        coef_A$Y*sum(Y[(t-m):(t-1)])  + coef_A$A*sum(A[(t-m):(t-1)]) + coef_A$W3_2 * sum(W3[(t-m):(t-1)])
+    lpA[t] <- lpA[t] + sum(W1[(t-m):(t-1)] * coef_W1) + sum(W2[(t-m):(t-1)] * coef_W2) +
+        coef_A$Y*sum(Y[(t-m):(t-1)])  + coef_A$A*sum(A[(t-m):(t-1)]) + sum(W3[(t-m):(t-1)] * coef_W3) - 2
     A[t] <- rbinom(1, 1, expit(lpA[t] / (m)))
     
     # outcomes
     lpY[t] <- coef_Y$intercept + coef_Y$A * A[t]
-    lpY[t] <- lpY[t] + coef_Y$W1*sum(W1[(t-m):(t-1)]) + coef_Y$W2*sum(W2[(t-m):(t-1)]) + coef_Y$W3*sum(W3[(t-m):(t-1)]) + coef_Y$W1_2*sum(W1[(t-m):(t-1)]) + coef_Y$W3_2*sum(W3[(t-m):(t-1)])
+    lpY[t] <- lpY[t] + sum(W1[(t-m):(t-1)] * coef_W1) + sum(W2[(t-m):(t-1)] * coef_W2) + sum(W3[(t-m):(t-1)] * coef_W3)
     Y[t] <- lpY[t] + yerr(1)
     
     # exogenous contemporaneous W
@@ -58,7 +67,7 @@ dgp_vdl <- function(T = 400, m = 10, d = 10){
   }
   
   # finite lags
-  DT <- data.table(t = 1:T, A, Y, W1, W2, W3)
+  DT <- data.table(t = 1:(T + m), A, Y, W1, W2, W3)
   for (h in 1:d) {
     DT[, paste0("A_lag",h)  := shift(A,  h)]
     DT[, paste0("Y_lag",h)  := shift(Y,  h)]
@@ -67,13 +76,14 @@ dgp_vdl <- function(T = 400, m = 10, d = 10){
     DT[, paste0("W3_lag",h) := shift(W3, h)]
   }
   setnafill(DT, type = "const", fill = 0)
+  DT = DT[(m+1):(T + m)]
   
   list(Y = DT$Y,
        A = DT$A,
        X = as.matrix(DT[, !c("t","A","Y")]),
        m = m,
-       g = expit(lpA / (m)),
-       Q1 = lpY)
+       g = expit(lpA / (m))[(m+1):(T + m)],
+       Q1 = lpY[(m+1):(T + m)])
 }
 
 ########################################################## Chernozhukov Crossfit
@@ -86,15 +96,27 @@ crossfit_iid_ts <- function(data, K = 2, seed = 258){
   set.seed(seed)
   n <- nrow(data$X)
   folds <- sample(rep(seq_len(K), length.out = n))
-  g_hat <- Q0_hat <- Q1_hat <- numeric(n)
+  g_hat <- Q0_hat <- Q1_hat <- Q_hat <- numeric(n)
   
   for (k in seq_len(K)){
     tr <- folds != k; te <- !tr
-    fit_g <- cv.glmnet(data$X[tr,,drop = FALSE], data$A[tr], family = "binomial", lambda = lgrid)
-    fit_Q <- cv.glmnet(cbind(A = data$A[tr], data$X[tr,,drop = FALSE]), data$Y[tr], family = "gaussian", lambda = lgrid)
-    g_hat[te] <- drop(predict(fit_g, data$X[te,, drop = FALSE], type = "response", s = "lambda.min"))
-    Q1_hat[te] <- drop(predict(fit_Q, cbind(A=1, data$X[te,, drop = FALSE]), type = "response", s= "lambda.min"))
-    Q0_hat[te] <- drop(predict(fit_Q, cbind(A = 0, data$X[te,,drop = FALSE]), s= "lambda.min"))
+    #fit_g <- cv.glmnet(data$X[tr,,drop = FALSE], data$A[tr], family = "binomial", nlambda = nlambda)
+    #fit_Q <- cv.glmnet(cbind(A = data$A[tr], data$X[tr,,drop = FALSE]), data$Y[tr], family = "gaussian", nlambda = nlambda)
+    #g_hat[te] <- drop(predict(fit_g, data$X[te,, drop = FALSE], type = "response", s = "lambda.min"))
+    #Q1_hat[te] <- drop(predict(fit_Q, cbind(A=1, data$X[te,, drop = FALSE]), type = "response", s= "lambda.min"))
+    #Q0_hat[te] <- drop(predict(fit_Q, cbind(A = 0, data$X[te,,drop = FALSE]), s= "lambda.min"))
+    
+    #fit_g <- nnet(data$X[tr,,drop = FALSE], data$A[tr], size = 4, maxit = maxit, decay = 0.5, trace = F)
+    #fit_Q <- nnet(cbind(A = data$A[tr], data$X[tr,,drop = FALSE]), data$Y[tr], linout = T, size = 4, maxit = maxit, trace = F)
+    #g_hat[te] <- predict(fit_g, data$X[te,, drop = FALSE])
+    #Q1_hat[te] <- predict(fit_Q, cbind(A=1, data$X[te,, drop = FALSE]), type = "raw")
+    #Q0_hat[te] <- predict(fit_Q, cbind(A = 0, data$X[te,,drop = FALSE]), type = "raw")
+
+    fit_g <- glm(data$A[tr] ~ ., data=data.frame(data$X[tr,,drop = FALSE]), family = "binomial")
+    fit_Q <- glm(data$Y[tr] ~ ., data=data.frame(cbind(A = data$A[tr], data$X[tr,,drop = FALSE])), family = "gaussian")
+    g_hat[te] <- predict(fit_g, newdata=data.frame(data$X[te,, drop = FALSE]), type = "response")
+    Q1_hat[te] <- predict(fit_Q, newdata=data.frame(cbind(A=1, data$X[te,, drop = FALSE])), type = "response")
+    Q0_hat[te] <- predict(fit_Q, newdata=data.frame(cbind(A = 0, data$X[te,,drop = FALSE])), type = "response")
   }
   
   psi <- ate_score(data$Y, data$A, g_hat, Q0_hat, Q1_hat, 0)
@@ -129,17 +151,29 @@ crossfit_nlo_ts <- function(data, K = 5, seed = 258) {
     tr <- fd[[k]]$tr          # not $train
     te <- fd[[k]]$te          # not $test
     
-    fit_g <- cv.glmnet(data$X[tr,, drop = FALSE], data$A[tr], family = "binomial", lambda = lgrid)
-    fit_Q <- cv.glmnet(cbind(A = data$A[tr], data$X[tr,, drop = FALSE]),
-                       data$Y[tr], family = "gaussian", lambda = lgrid)
+    #fit_g <- cv.glmnet(data$X[tr,, drop = FALSE], data$A[tr], family = "binomial", nlambda = nlambda)
+    #fit_Q <- cv.glmnet(cbind(A = data$A[tr], data$X[tr,, drop = FALSE]),
+    #                   data$Y[tr], family = "gaussian", nlambda = nlambda)
 
-    g_te  <- drop(predict(fit_g, data$X[te,, drop = FALSE],
-                          type = "response", s = "lambda.min"))
-    Q1_te <- drop(predict(fit_Q, cbind(A = 1, data$X[te,, drop = FALSE]),
-                          type = "response",s = "lambda.min"))
-    Q0_te <- drop(predict(fit_Q, cbind(A = 0, data$X[te,, drop = FALSE]),
-                          type = "response",s = "lambda.min"))
-    
+    #g_te  <- drop(predict(fit_g, data$X[te,, drop = FALSE],
+    #                      type = "response", s = "lambda.min"))
+    #Q1_te <- drop(predict(fit_Q, cbind(A = 1, data$X[te,, drop = FALSE]),
+    #                      type = "response",s = "lambda.min"))
+    #Q0_te <- drop(predict(fit_Q, cbind(A = 0, data$X[te,, drop = FALSE]),
+    #                      type = "response",s = "lambda.min"))
+
+    #fit_g <- nnet(data$X[tr,,drop = FALSE], data$A[tr], size = 4, maxit = maxit, decay = 0.5, trace = F)
+    #fit_Q <- nnet(cbind(A = data$A[tr], data$X[tr,,drop = FALSE]), data$Y[tr], linout = T, size = 4, maxit = maxit, trace = F)
+    #g_te <- predict(fit_g, data$X[te,, drop = FALSE], type = "raw")
+    #Q1_te <- predict(fit_Q, cbind(A=1, data$X[te,, drop = FALSE]), type = "raw")
+    #Q0_te <- predict(fit_Q, cbind(A = 0, data$X[te,,drop = FALSE]), type = "raw")
+
+    fit_g <- glm(data$A[tr] ~ ., data=data.frame(data$X[tr,,drop = FALSE]), family = "binomial")
+    fit_Q <- glm(data$Y[tr] ~ ., data=data.frame(cbind(A = data$A[tr], data$X[tr,,drop = FALSE])), family = "gaussian")
+    g_te <- predict(fit_g, newdata=data.frame(data$X[te,, drop = FALSE]), type = "response")
+    Q1_te <- predict(fit_Q, newdata=data.frame(cbind(A=1, data$X[te,, drop = FALSE])), type = "response")
+    Q0_te <- predict(fit_Q, newdata=data.frame(cbind(A = 0, data$X[te,,drop = FALSE])), type = "response")
+
     psi_list[[k]] <- ate_score(data$Y[te], data$A[te],
                                g_te, Q0_te, Q1_te, 0)
   }
@@ -152,16 +186,27 @@ crossfit_none_ts <- function(data, seed = 258) {
   set.seed(seed)
   T  <- nrow(data$X)
 
-  fit_g <- cv.glmnet(data$X, data$A, family = "binomial", lambda = lgrid)
-  fit_Q <- cv.glmnet(cbind(A = data$A, data$X), data$Y, family = "gaussian", lambda = lgrid)
-
+  #fit_g <- cv.glmnet(data$X, data$A, family = "binomial", nlambda = nlambda)
+  #fit_Q <- cv.glmnet(cbind(A = data$A, data$X), data$Y, family = "gaussian", nlambda = nlambda)
     
-  g_te  <- drop(predict(fit_g, data$X,
-                        type = "response", s = "lambda.min"))
-  Q1_te <- drop(predict(fit_Q, cbind(A = 1, data$X),
-                        s = "lambda.min"))
-  Q0_te <- drop(predict(fit_Q, cbind(A = 0, data$X),
-                        s = "lambda.min"))
+  #g_te  <- drop(predict(fit_g, data$X,
+  #                      type = "response", s = "lambda.min"))
+  #Q1_te <- drop(predict(fit_Q, cbind(A = 1, data$X),
+  #                      s = "lambda.min"))
+  #Q0_te <- drop(predict(fit_Q, cbind(A = 0, data$X),
+  #                      s = "lambda.min"))
+
+  #fit_g <- nnet(data$X, data$A, size = 4, maxit = maxit, decay = 0.5, trace = F)
+  #fit_Q <- nnet(cbind(A = data$A, data$X), data$Y, linout = T, size = 4, maxit = maxit, trace = F)
+  #g_te <- predict(fit_g, data$X, type = "raw")
+  #Q1_te <- predict(fit_Q, cbind(A=1, data$X), type = "raw")
+  #Q0_te <- predict(fit_Q, cbind(A = 0, data$X), type = "raw")
+
+  fit_g <- glm(data$A ~ ., data=data.frame(data$X), family = "binomial")
+  fit_Q <- glm(data$Y ~ ., data=data.frame(cbind(A = data$A, data$X)), family = "gaussian")
+  g_te <- predict(fit_g, data.frame(data$X), type = "response")
+  Q1_te <- predict(fit_Q, data.frame(cbind(A=1, data$X)), type = "response")
+  Q0_te <- predict(fit_Q, data.frame(cbind(A = 0, data$X)), type = "response")
 
   psi_all <- ate_score(data$Y, data$A, g_te, Q0_te, Q1_te, 0)
     
@@ -171,14 +216,14 @@ crossfit_none_ts <- function(data, seed = 258) {
 
 #################################################################### simulation!
 
-perf_ts <- function(T_vec = c(400, 900, 1600, 2500), reps = 200, m = 10, K, seed = 42, true_tau = 0){
+perf_ts <- function(T_vec = c(400, 900, 1600, 2500), reps = 200, m = 10, K = 5, seed = 42, true_tau = 0){
   set.seed(seed)
   res <- list(); idx <- 1
   for (T in T_vec){
     print(paste("Running T =", T))
     theta_iid <- theta_nlo <- theta_none <- time_iid <- time_nlo <- time_none <- numeric(reps)
     for (r in seq_len(reps)){
-      data <- dgp_vdl(T, m, 0.5 * T)
+      data <- dgp_vdl(T, m, round(T^(1/3)))
       print(paste0("IID Replicate ", r))
       t1 <- system.time(est_iid <- crossfit_iid_ts(data, K, seed+T+r))["elapsed"]
       print(paste0("NLO Replicate ", r))
@@ -210,8 +255,7 @@ perf_ts <- function(T_vec = c(400, 900, 1600, 2500), reps = 200, m = 10, K, seed
 
 set.seed(2025)
 
-
-res_dt <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 10, m = 10, K = 5, true_tau = 1)
+res_dt <- perf_ts(T_vec = c(400, 900, 1600, 2500), reps = 20, m = 4, K = 5, true_tau = 1)
 write.csv(res_dt, here("data", "results_ts_hard.csv"), row.names = FALSE)
 
 p_bias <- ggplot(res_dt, aes(T, bias, color = method)) +

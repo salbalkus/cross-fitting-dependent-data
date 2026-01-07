@@ -8,6 +8,26 @@ library(kableExtra)
 library(stringr)
 library(here)
 
+# IID example for intro
+df_nnet <- read.csv(here::here("data", "nnet_example.csv"))
+df_nnet$method = factor(df_nnet$method, levels = c("iid", "none"), labels = c("As-independent", "No cross-fit"))
+df_nnet$scaled_variance = df_nnet$variance * df_nnet$n
+df_nnet$scaled_bias = df_nnet$bias * sqrt(df_nnet$n)
+df_nnet$bias = df_nnet$bias * 100  # convert to percentage
+val_colors = c("As-independent" = "#002e5c", "No cross-fit" = "#A0A0A0")
+
+p_scaled_bias <- ggplot(df_nnet, aes(x = n, y = scaled_bias, color = method, group = method)) +
+    geom_line() +
+    geom_point() +
+    geom_hline(aes(yintercept = 0)) +
+    scale_color_manual(values = val_colors) +
+    labs(y = "Scaled Bias", x = "Sample Size") +
+    theme_minimal() +
+    theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
+
+ggsave(here("figures", "scaled_nnet.png"), plot = p_scaled_bias, width = 4, height = 3, dpi=300)
+
+
 # Cluster results
 df_cluster <- read.csv(here::here("data", "results_cluster_hard.csv"))
 
@@ -78,9 +98,9 @@ ggsave(here("figures", "scaled_cluster.png"), plot = plot_grid, width = 4, heigh
 
 # Time series results
 df_ts <- read.csv(here::here("data", "results_ts_hard.csv"))
-df_ts$method = factor(df_ts$method, levels = c("iid", "nlo"), labels = c("As-independent", "Neighbors left out"))
+df_ts$method = factor(df_ts$method, levels = c("iid", "nlo", "none"), labels = c("As-independent", "Neighbors left out", "No cross-fit"))
 df_ts$scaled_variance = df_ts$variance * df_ts$T
-df_ts$scaled_bias = df_ts$bias * df_ts$T
+df_ts$scaled_bias = df_ts$bias * sqrt(df_ts$T)
 df_ts$bias = df_ts$bias * 100  # convert to percentage
 # Create table
 df_ts_tbl = df_ts %>% select(-scaled_variance) %>% pivot_wider(names_from = method, values_from = c(bias, variance, mse, mean_time))
@@ -91,7 +111,7 @@ kable(df_ts_tbl, format = "latex", col.names = c("Clusters", "IID", "NLO", "IID"
 
 # Create plots
 
-val_colors = c("As-independent" = "#002e5c", "Neighbors left out" = "#C67700")
+val_colors = c("As-independent" = "#002e5c", "Neighbors left out" = "#C67700", "No cross-fit" = "#808080")
 
 p_bias <- ggplot(df_ts, aes(x = T, y = bias, color = method, group = method)) +
     geom_line() +
@@ -132,11 +152,11 @@ p_mse <- ggplot(df_ts, aes(x = T, y = mse * T, color = method, group = method)) 
     theme(legend.position = "bottom") + guides(color = guide_legend(title = "Type"))
 
 # Arrange plots in a grid with shared legend
-plot_grid <- (p_scaled_bias / p_var) +
+plot_grid <- (p_scaled_bias / p_var / p_mse) +
     plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
 
-ggsave(here("figures", "scaled_time_series.png"), plot = plot_grid, width = 4, height = 4, dpi=300)
+ggsave(here("figures", "scaled_time_series.png"), plot = plot_grid, width = 4, height = 6, dpi=300)
 
 
 ##### Network data #####
