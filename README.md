@@ -7,4 +7,4 @@ This code is meant to reproduce the simulation results in Balkus, Laith, and Hej
 * ```data``` contains .csv files storing simulation results. 
 * ```figures``` visualize the simulation results from ```data```, created by ```create_plots.R``` in the ```scripts``` folder. 
 
-To reproduce results from the paper, rerun the each file in ```scripts```. Each ```run_``` script corresponds to one of the example DGPs in the paper (clustered, network, and time series data). The ```create_plots.R``` script produces the plots in the manuscript. 
+To reproduce results from the paper, rerun the each file in ```scripts```. Each ```run_``` script corresponds to one of the example DGPs in the paper (clustered, network, and time series data). The ```create_plots.R``` script produces the plots in the manuscript using the data generated from each ```run_``` script. 
