@@ -6,3 +6,5 @@ This code is meant to reproduce the simulation results in Balkus, Laith, and Hej
 * ```scripts``` contains code to generate publication-ready plots and to run code on the cluster. 
 * ```data``` contains .csv files storing simulation results. 
 * ```figures``` visualize the simulation results from ```data```, created by ```create_plots.R``` in the ```scripts``` folder. 
+
+To reproduce results from the paper, rerun the each file in ```scripts```. Each script corresponds to one of the example DGPs in the paper (clustered, network, and time series data). 
